@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMERQ Challenge - NUR3203 Study Hub</title>
+    <style>
+        :root {
+            --primary: #006056; /* UQU Green */
+            --secondary: #b39b59; /* Gold */
+            --bg: #f4f7f6;
+            --text: #333;
+            --panel: #fff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: text;
+        }
+        /* Sidebar Navigation */
+        #sidebar {
+            width: 250px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        #sidebar h2 { margin-top: 0; font-size: 1.5em; border-bottom: 2px solid var(--secondary); padding-bottom: 10px; }
+        .student-info { font-size: 0.9em; margin-bottom: 20px; color: #ddd; }
+        .nav-btn {
+            background: none; border: none; color: white; text-align: left;
+            padding: 10px; margin: 5px 0; cursor: pointer; font-size: 1em;
+            border-radius: 5px; transition: background 0.3s;
+        }
+        .nav-btn:hover, .nav-btn.active { background-color: var(--secondary); }
+        
+        /* Tools Panel */
+        #tools-panel {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 20px; border-top: 1px solid #004d45;
+        }
+        .tool-btn {
+            flex: 1 1 45%; background-color: #004d45; color: white; border: 1px solid var(--secondary);
+            padding: 8px; cursor: pointer; border-radius: 5px; font-size: 0.8em; text-align: center;
+        }
+        .tool-btn.active { background-color: var(--secondary); color: #000; font-weight: bold; }
+
+        /* Main Content Area */
+        #main-content {
+            flex-grow: 1; overflow-y: auto; padding: 30px; position: relative; scroll-behavior: smooth;
+        }
+        .content-section {
+            display: none; background: var(--panel); padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px; line-height: 1.6;
+        }
+        .content-section.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        h1 { color: var(--primary); }
+        h3 { color: var(--secondary); }
+
+        /* MCQ Engine Styles */
+        #mcq-setup, #mcq-test, #mcq-report { display: none; }
+        .mcq-option {
+            display: block; width: 100%; text-align: left; padding: 15px; margin: 10px 0;
+            background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;
+            transition: all 0.2s; font-size: 1em;
+        }
+        .mcq-option:hover { background: #e9ecef; }
+        .mcq-option.selected { background: var(--primary); color: white; border-color: var(--primary); }
+        .mcq-option.correct { background: #28a745 !important; color: white !important; }
+        .mcq-option.wrong { background: #dc3545 !important; color: white !important; }
+        .mcq-controls { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; }
+        .btn:hover { background: #004d45; }
+        #timer-display { font-size: 1.5em; font-weight: bold; color: #dc3545; }
+
+        /* Laser Pen */
+        #laser-dot {
+            position: fixed; width: 10px; height: 10px; background: red; border-radius: 50%;
+            pointer-events: none; display: none; z-index: 9999;
+            box-shadow: 0 0 10px 5px rgba(255, 0, 0, 0.5); transform: translate(-50%, -50%);
+        }
+
+        /* Focus Modal & Smarter Studying */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; width: 400px; text-align: center; }
+        .close-modal { float: right; cursor: pointer; font-size: 1.5em; font-weight: bold; }
+        #focus-timer { font-size: 4em; margin: 20px 0; color: var(--primary); font-weight: bold; }
+
+        .footer { text-align: center; padding: 20px; font-size: 0.9em; color: #777; margin-top: 40px; }
+        ::selection { background: #b39b59; color: #fff; }
+        .highlighted { background-color: yellow; color: black; }
+    </style>
+</head>
+<body>
+
+    <!-- Laser Dot -->
+    <div id="laser-dot"></div>
+
+    <!-- Sidebar Navigation -->
+    <div id="sidebar">
+        <h2>AMERQ Challenge</h2>
+        <div class="student-info">
+            <strong>Student Name:</strong> Amer Alsharif<br>
+            <strong>University No:</strong> 447055067<br>
+            <strong>Course:</strong> NUR3203<br>
+            <strong>Group No:</strong> 23
+        </div>
+        
+        <button class="nav-btn active" onclick="switchSection('study-notes')">📖 Study Notes</button>
+        <button class="nav-btn" onclick="switchSection('mcq-dashboard')">🎮 MCQ Challenge</button>
+        
+        <div id="tools-panel">
+            <button class="tool-btn" id="btn-highlight" onclick="toggleHighlight()">🖊️ Highlight</button>
+            <button class="tool-btn" id="btn-laser" onclick="toggleLaser()">🔴 Laser Pen</button>
+            <button class="tool-btn" onclick="openModal('focus-modal')">⏱️ Focus Session</button>
+            <button class="tool-btn" onclick="openModal('smart-study-modal')">🧠 Smart Study</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        
+        <!-- Section: Study Notes -->
+        <div id="study-notes" class="content-section active">
+            <h1>Community Health Nursing (NUR3203) - Core Notes</h1>
+            
+            <h3>Lecture 1: Introduction to Community Health</h3>
+            <p>Public Health is the science and art focusing on preventing disease and promoting individual health through collective interventions. Health Equity aims to achieve equality in access to healthcare and services across all individuals. A healthy environment involves clean air, safe water, and good housing.</p>
+            
+            <h3>Lecture 2: Determinants of Health</h3>
+            <p>Health determinants include Biological Factors (genetics), Socio-cultural conditions (lifestyle choices), Environmental conditions, and Socioeconomic status (like GDP per capita). Education, particularly for women, is one of the most critical factors influencing health outcomes, as low education links to poor health and higher stress.</p>
+
+            <h3>Lecture 3: Principles and Types of Diseases</h3>
+            <p>Diseases manifest at various levels of biological organization (Cell &rarr; Tissue &rarr; Organ &rarr; System). Types include: <b>Infectious</b> (e.g., Influenza, Malaria), <b>Non-infectious</b> (e.g., Diabetes, Heart disease), <b>Genetic</b> (e.g., Sickle Cell Anemia), <b>Chronic</b> (e.g., Asthma, Hypertension), and <b>Acute</b> (e.g., Appendicitis, common cold).</p>
+
+            <h3>Lecture 4: Prevalent Diseases in Saudi Society</h3>
+            <p>Chronic diseases heavily impact the Saudi population. Diabetes affects approximately 19% of adults, with 44% at risk. Hypertension affects 3.4% of adults over 30. Obesity, a major lifestyle-related disease, has a prevalence of 20.2%. Dengue fever is a notable infectious disease transmitted by the Aedes aegypti mosquito.</p>
+
+            <h3>Lecture 5: Immunizations & Screening</h3>
+            <p>Vaccines stimulate the immune system to produce long-term immunity. Herd immunity protects the unvaccinated when a sufficient percentage of the population is immunized. The Saudi National Immunization Schedule includes childhood vaccines, Hajj/Umrah vaccines (like Meningococcal and Influenza), and vaccines for the elderly/chronic disease patients.</p>
+
+            <h3>Lecture 6: Lifestyle & Cultural Habits</h3>
+            <p>Healthy lifestyles require balanced nutrition, physical activity, and healthy sleep patterns. Negative cultural habits, such as consanguineous marriage (marrying close relatives), significantly increase the probability of transmitting genetic diseases like Thalassemia and Sickle Cell Anemia.</p>
+
+            <div class="footer">Made with love by: AMER ALSHARIF</div>
+        </div>
+
+        <!-- Section: MCQ Dashboard -->
+        <div id="mcq-dashboard" class="content-section">
+            <h1>NUR3203 MCQ Challenge Engine</h1>
+            
+            <!-- Setup Phase -->
+            <div id="mcq-setup" style="display: block;">
+                <h3>Customize Your Session</h3>
+                <label>Number of MCQs (Max 200): <input type="number" id="mcq-count" value="10" min="1" max="200" style="width: 60px; padding: 5px;"></label><br><br>
+                <label>Time per question (seconds): <input type="number" id="mcq-time" value="30" min="5" max="120" style="width: 60px; padding: 5px;"></label><br><br>
+                <label><input type="checkbox" id="mcq-sound" checked> Enable Sound Effects</label><br><br>
+                <button class="btn" onclick="startTest()">Start Challenge</button>
+            </div>
+
+            <!-- Testing Phase -->
+            <div id="mcq-test">
+                <div class="mcq-controls">
+                    <span id="question-tracker">Question 1 / 10</span>
+                    <span id="timer-display">00:30</span>
+                </div>
+                <h2 id="question-text">Question goes here?</h2>
+                <div id="options-container">
+                    <!-- Options injected via JS -->
+                </div>
+                <div class="mcq-controls">
+                    <button class="btn" id="btn-next" onclick="nextQuestion()" disabled>Next Question</button>
+                </div>
+            </div>
+
+            <!-- Reporting Phase -->
+            <div id="mcq-report">
+                <h2>Session Complete!</h2>
+                <h1 id="final-score" style="color: var(--primary); font-size: 3em;">80%</h1>
+                <p id="feedback-message">Great job!</p>
+                <button class="btn" onclick="resetTest()">Start New Session</button>
+                <div class="footer">Made with love by: AMER ALSHARIF</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Focus Session Modal -->
+    <div id="focus-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('focus-modal')">&times;</span>
+            <h2>Focus Session</h2>
+            <p>Use the Pomodoro technique to maximize retention.</p>
+            <div id="focus-timer">25:00</div>
+            <button class="btn" onclick="startFocusTimer()">Start</button>
+            <button class="btn" onclick="resetFocusTimer()" style="background: #dc3545;">Reset</button>
+        </div>
+    </div>
+
+    <!-- Smart Study Modal -->
+    <div id="smart-study-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('smart-study-modal')">&times;</span>
+            <h2>🧠 Smarter Studying</h2>
+            <ul style="text-align: left; line-height: 1.8;">
+                <li><b>Active Recall:</b> Don't just read. Test yourself constantly using the MCQ engine.</li>
+                <li><b>Spaced Repetition:</b> Review difficult lectures (like Biostatistics or Critical Care) at increasing intervals.</li>
+                <li><b>Feynman Technique:</b> Explain Community Health concepts out loud as if teaching a patient at Al-Noor Hospital.</li>
+                <li><b>Focus Sessions:</b> Study for 25 minutes, then take a 5-minute break.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- Navigation ---
+        function switchSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // --- Custom Tools ---
+        
+        // 1. Laser Pen
+        let laserActive = false;
+        const laserDot = document.getElementById('laser-dot');
+        function toggleLaser() {
+            laserActive = !laserActive;
+            document.getElementById('btn-laser').classList.toggle('active');
+            laserDot.style.display = laserActive ? 'block' : 'none';
+        }
+        document.addEventListener('mousemove', (e) => {
+            if (laserActive) {
+                laserDot.style.left = e.clientX + 'px';
+                laserDot.style.top = e.clientY + 'px';
+            }
+        });
+
+        // 2. Custom Highlighter
+        let highlightActive = false;
+        function toggleHighlight() {
+            highlightActive = !highlightActive;
+            document.getElementById('btn-highlight').classList.toggle('active');
+        }
+        document.addEventListener('mouseup', () => {
+            if (highlightActive) {
+                let selection = window.getSelection();
+                if (selection.toString().length > 0) {
+                    let range = selection.getRangeAt(0);
+                    let span = document.createElement('span');
+                    span.className = 'highlighted';
+                    range.surroundContents(span);
+                    selection.removeAllRanges();
+                }
+            }
+        });
+
+        // 3. Modals
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // 4. Focus Session Timer
+        let focusTime = 1500; // 25 mins
+        let focusInterval;
+        function updateFocusDisplay() {
+            let m = Math.floor(focusTime / 60).toString().padStart(2, '0');
+            let s = (focusTime % 60).toString().padStart(2, '0');
+            document.getElementById('focus-timer').innerText = `${m}:${s}`;
+        }
+        function startFocusTimer() {
+            clearInterval(focusInterval);
+            focusInterval = setInterval(() => {
+                if(focusTime > 0) { focusTime--; updateFocusDisplay(); }
+                else { clearInterval(focusInterval); playSound(800, 'sine', 1); alert('Session Complete! Take a break.'); }
+            }, 1000);
+        }
+        function resetFocusTimer() { clearInterval(focusInterval); focusTime = 1500; updateFocusDisplay(); }
+
+        // --- Synthetic Sound Effects (No external files needed) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(frequency, type, duration) {
+            if(!document.getElementById('mcq-sound').checked) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.value = frequency;
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        // --- MCQ Engine ---
+        // Note to Amer: The engine supports 200 questions. Simply add more objects to this array!
+        const databaseMCQs = [
+            { q: "What is Public Health?", options: ["Science focusing on disease prevention through collective interventions", "Treating an individual patient in a clinic", "Studying animal diseases", "Managing hospital finances"], ans: 0 },
+            { q: "Which of the following is an environmental factor affecting health?", options: ["Socio-economic status", "Pollution and clean water", "Genetic makeup", "Unemployment"], ans: 1 },
+            { q: "What does 'Social Gradient' refer to?", options: ["Measuring blood pressure", "Socio-economic differences in health across populations", "A type of physical exercise", "The spread of infectious diseases"], ans: 1 },
+            { q: "According to Lecture 3, how are diseases primarily classified by cause?", options: ["Acute and Chronic", "Infectious and Non-infectious", "Childhood and Elderly", "Male and Female"], ans: 1 },
+            { q: "Which disease is transmitted by the Aedes aegypti mosquito?", options: ["Diabetes", "Asthma", "Dengue Fever", "Sickle Cell Anemia"], ans: 2 },
+            { q: "What percentage of adults in Saudi Arabia are affected by obesity?", options: ["5%", "10.5%", "20.2%", "50%"], ans: 2 },
+            { q: "What is Herd Immunity?", options: ["Immunity gained by eating healthy food", "Protection for the unvaccinated when a sufficient percentage of the community is immunized", "Immunity that only applies to animals", "A type of genetic disease"], ans: 1 },
+            { q: "Consanguineous marriage (marrying relatives) increases the risk of:", options: ["Infectious diseases", "Genetic diseases like Sickle Cell Anemia", "Traffic accidents", "Asthma"], ans: 1 },
+            { q: "Primary prevention involves:", options: ["Rehabilitation after surgery", "Early detection through screening", "Preventing disease before it occurs (e.g., vaccines)", "Treating chronic pain"], ans: 2 },
+            { q: "Which of the following is considered a 'Live Attenuated Vaccine'?", options: ["MMR (Measles, Mumps, Rubella)", "COVID-19 mRNA vaccine", "Hepatitis A vaccine", "Tetanus toxoid"], ans: 0 },
+            { q: "What is the most widely accepted measure of a country's economic status regarding health?", options: ["Birth rate", "Gross National Product (GNP) per capita", "Number of hospitals", "Climate"], ans: 1 },
+            { q: "Which of these is a complication of Sickle Cell Anemia?", options: ["Lung cancer", "Vascular occlusion and blood clots", "Hair loss", "Increased insulin production"], ans: 1 }
+            // Add remaining questions up to 200 here following the same format.
+        ];
+
+        let activeMCQs = [];
+        let currentQIndex = 0;
+        let score = 0;
+        let qTimer;
+        let timeLeft;
+        let answered = false;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startTest() {
+            let requestedCount = parseInt(document.getElementById('mcq-count').value);
+            if(requestedCount > databaseMCQs.length) requestedCount = databaseMCQs.length;
+            
+            // Shuffle database and select requested amount
+            let dbCopy = [...databaseMCQs];
+            shuffleArray(dbCopy);
+            activeMCQs = dbCopy.slice(0, requestedCount);
+            
+            currentQIndex = 0;
+            score = 0;
+            
+            document.getElementById('mcq-setup').style.display = 'none';
+            document.getElementById('mcq-test').style.display = 'block';
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            answered = false;
+            document.getElementById('btn-next').disabled = true;
+            
+            let qData = activeMCQs[currentQIndex];
+            document.getElementById('question-tracker').innerText = `Question ${currentQIndex + 1} / ${activeMCQs.length}`;
+            document.getElementById('question-text').innerText = qData.q;
+            
+            let optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            qData.options.forEach((opt, index) => {
+                let btn = document.createElement('button');
+                btn.className = 'mcq-option';
+                btn.innerText = opt;
+                btn.onclick = () => selectOption(btn, index, qData.ans);
+                optionsContainer.appendChild(btn);
+            });
+
+            // Timer
+            timeLeft = parseInt(document.getElementById('mcq-time').value);
+            updateTimerDisplay();
+            clearInterval(qTimer);
+            qTimer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if(timeLeft <= 0) {
+                    clearInterval(qTimer);
+                    timeOut();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            let m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            let s = (timeLeft % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+        }
+
+        function selectOption(btn, selectedIdx, correctIdx) {
+            if(answered) return;
+            answered = true;
+            clearInterval(qTimer);
+            
+            let buttons = document.querySelectorAll('.mcq-option');
+            if(selectedIdx === correctIdx) {
+                btn.classList.add('correct');
+                score++;
+                playSound(600, 'square', 0.1); // Success beep
+                setTimeout(() => playSound(800, 'square', 0.2), 100);
+            } else {
+                btn.classList.add('wrong');
+                buttons[correctIdx].classList.add('correct'); // Show correct
+                playSound(200, 'sawtooth', 0.3); // Fail buzz
+            }
+            document.getElementById('btn-next').disabled = false;
+        }
+
+        function timeOut() {
+            if(answered) return;
+            answered = true;
+            playSound(200, 'sawtooth', 0.3);
+            let buttons = document.querySelectorAll('.mcq-option');
+            buttons[activeMCQs[currentQIndex].ans].classList.add('correct');
+            document.getElementById('btn-next').disabled = false;
+        }
+
+        function nextQuestion() {
+            currentQIndex++;
+            if(currentQIndex < activeMCQs.length) {
+                loadQuestion();
+            } else {
+                showReport();
+            }
+        }
+
+        function showReport() {
+            document.getElementById('mcq-test').style.display = 'none';
+            document.getElementById('mcq-report').style.display = 'block';
+            
+            let percentage = Math.round((score / activeMCQs.length) * 100);
+            document.getElementById('final-score').innerText = `${percentage}%`;
+            
+            let feedback = document.getElementById('feedback-message');
+            if(percentage >= 90) feedback.innerText = "Outstanding! Ready for clinicals!";
+            else if(percentage >= 70) feedback.innerText = "Good job! Keep reviewing those notes.";
+            else feedback.innerText = "Needs more review. Use the Focus Session and Smart Study tips!";
+            
+            playSound(400, 'sine', 0.2);
+            setTimeout(() => playSound(600, 'sine', 0.2), 200);
+            setTimeout(() => playSound(800, 'sine', 0.4), 400);
+        }
+
+        function resetTest() {
+            document.getElementById('mcq-report').style.display = 'none';
+            document.getElementById('mcq-setup').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
